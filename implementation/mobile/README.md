@@ -1,7 +1,8 @@
 # ScreenshotMatcher – iOS App
 
-SwiftUI camera app that discovers the Python test server on the local WiFi
-network via Bonjour/mDNS, then uploads the captured photo via HTTP.
+SwiftUI camera app that discovers the Python server on the local WiFi
+network via Bonjour/mDNS, sends the captured photo for matching, and shows
+the sent/received photos in their own galleries.
 
 ## Setup
 
@@ -24,15 +25,16 @@ automatically).
 1. In Xcode, select your iPhone as the run destination.
 2. Under the target's "Signing & Capabilities" tab, set your Apple ID team
    (personal free provisioning is enough for local testing).
-3. Make sure the iPhone and the Mac running `implementation/server/test_server.py`
+3. Make sure the iPhone and the Mac running `implementation/server/server.py`
    are on the **same WiFi network**.
 4. Run the app (⌘R). Grant camera and local network permissions when
    prompted.
-5. Start the Python test server on the Mac first (see
+5. Start the Python server on the Mac first (see
    `implementation/server/README.md`), then launch/foreground the app — it
    browses for the server via Bonjour on launch and shows the connection
-   status at the top of the screen.
-6. Tap the shutter button to capture a photo and send it to the server.
+   status at the top of the camera screen.
+6. Tap the shutter button to capture a photo and send it to the server. The
+   result (or an error, if matching failed) appears in the Received tab.
 
 If you change the Bonjour service type (`NSBonjourServices` in `project.yml`
 and `serviceType` in `DiscoveryService.swift`) or any other entitlement,
@@ -43,16 +45,21 @@ network permission per build and a stale install can keep failing with
 ## Structure
 
 - `ScreenshotMatcherApp.swift` – app entry point
-- `ContentView.swift` – camera viewfinder UI, connection status, capture button
+- `RootView.swift` – tab bar (Camera / Sent / Received)
+- `CameraView.swift` – camera viewfinder, connection status, capture button, upload flow
 - `CameraManager.swift` – AVFoundation capture session wrapper
 - `CameraPreviewView.swift` – UIViewRepresentable live preview layer
 - `DiscoveryService.swift` – Bonjour/mDNS discovery of the host PC (NWBrowser)
-- `UploadService.swift` – multipart/form-data HTTP upload of the captured photo
+- `UploadService.swift` – downscales the photo, uploads it (multipart/form-data), returns the result
+- `MatchingAlgorithm.swift` – ORB/SIFT selection, sent as a query parameter on upload
+- `ConnectionBadge.swift` – compact connection status pill + detail sheet (log, manual connect, algorithm picker)
+- `GalleryStore.swift` – persists sent/received photos to disk with a JSON index
+- `GalleryView.swift` – grid gallery + detail view (share, delete)
 
 ## Discovery/upload protocol
 
 See `implementation/server/README.md` for the protocol shared between the
-app and the Python test server.
+app and the Python server.
 
 ## Troubleshooting notes (from getting this running)
 
@@ -67,3 +74,7 @@ app and the Python test server.
   queue — mixing MainActor-isolated and background-queue access to the same
   session caused corrupted capture sessions (CoreMedia
   `FigCaptureSourceRemote` errors) on device.
+- Uploading full-resolution iPhone photos (several MB) produced poor ORB
+  match rates — the paper has the phone "scale it down in resolution"
+  before sending, which we were initially missing. `UploadService` now
+  downscales to 1280px on the long edge before upload.

@@ -10,7 +10,7 @@ def capture_primary_screen_jpeg() -> bytes:
         monitor = sct.monitors[1]  # index 0 is "all monitors combined"
         raw = sct.grab(monitor)
 
-    frame = np.array(raw)  # BGRA
+    frame = np.array(raw)
     frame_bgr = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
     success, encoded = cv2.imencode(".jpg", frame_bgr)
     if not success:

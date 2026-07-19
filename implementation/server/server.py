@@ -1,49 +1,17 @@
 """
-ScreenshotMatcher server.
-
-Stand-in for the "PC daemon" described in the ScreenshotMatcher paper. It
-does three things:
-
-1. Bonjour/mDNS advertisement: registers itself as a "_shotmatcher._tcp"
-   service on the local network (via the `zeroconf` package) so the iOS app
-   can discover it with NWBrowser, without either side needing to know IP
-   addresses in advance.
-2. HTTP upload: runs an HTTP server on port 8000 and accepts a
-   multipart/form-data POST to /upload containing a "photo" field. Received
-   photos are saved to ./received/.
-3. Matching: takes a screenshot of the Mac's primary display, then matches
-   the phone photo against it using either ORB (feature detection + a
-   brute-force Hamming matcher) or SIFT (+ a FLANN-based matcher), both
-   followed by Lowe's ratio test + RANSAC homography (see orb.py/sift.py,
-   adapted from Taylan's scripts/server_ready/). The algorithm is selected
-   per-request via the `algorithm` query parameter on /upload (`orb`, the
-   default, or `sift`). The matched region is cropped from the screenshot
-   and returned to the phone. If matching fails (not enough good keypoint
-   matches, no valid homography, ...), a 422 response is returned instead so
-   the app can show a "no match" error.
-
-An earlier version just echoed the uploaded photo back as a stand-in result,
-to get the app's receive/gallery path built and tested before the matching
-pipeline existed. That echo path is gone now that real matching is wired up.
-
-An even earlier version used a hand-rolled UDP broadcast protocol for
-discovery, which turned out to be unreliable on a WiFi extender network
-(broadcast packets computed for the wrong subnet mask never arrived).
-Bonjour/mDNS is the platform-native mechanism for local service discovery on
-Apple devices and is handled by the OS network stack, so it isn't subject to
-that class of bug.
+ScreenshotMatcher server: the "PC daemon" described in the ScreenshotMatcher
+paper. Advertises itself via Bonjour/mDNS, receives a photo from the iOS app
+over HTTP, captures its own screen, matches the two with ORB or SIFT
+(orb.py / sift.py), and returns the cropped result.
 
 Usage:
     python3 -m venv .venv && source .venv/bin/activate
     pip install -r requirements.txt
-    python3 test_server.py
+    python3 server.py
 
-On macOS, granting Terminal (or your IDE) Screen Recording permission
-(System Settings > Privacy & Security > Screen Recording) is required for
-screenshots to work — otherwise mss captures black frames.
+See README.md for the wire protocol and required macOS permissions.
 """
 
-import os
 import socket
 from datetime import datetime
 from pathlib import Path
@@ -67,10 +35,6 @@ MATCHERS = {
     "sift": process_sift,
 }
 DEFAULT_ALGORITHM = "orb"
-
-# Set MATCHING_ALWAYS_FAILS=1 in the environment to make every upload return
-# a matching-failure response, for testing the app's error handling.
-MATCHING_ALWAYS_FAILS = os.environ.get("MATCHING_ALWAYS_FAILS") == "1"
 
 
 def local_ip() -> str:
@@ -144,10 +108,6 @@ class UploadHandler(BaseHTTPRequestHandler):
         out_path.write_bytes(jpeg_bytes)
         print(f"[upload] saved {out_path} ({len(jpeg_bytes)} bytes) from {self.client_address[0]}")
 
-        if MATCHING_ALWAYS_FAILS:
-            self._send_matching_failure("Simulated matching failure (MATCHING_ALWAYS_FAILS=1)")
-            return
-
         try:
             screen_jpeg = capture_primary_screen_jpeg()
         except Exception as e:
@@ -197,11 +157,6 @@ class UploadHandler(BaseHTTPRequestHandler):
             if header_end == -1:
                 continue
             content = part[header_end + 4:]
-            # Each part is followed by exactly "\r\n" before the next
-            # boundary marker (per the multipart spec) — strip only that
-            # literal trailing separator, not an arbitrary run of
-            # \r/\n/- bytes, which previously corrupted JPEGs whose actual
-            # last bytes happened to match one of those characters.
             if content.endswith(b"\r\n"):
                 content = content[:-2]
             return content

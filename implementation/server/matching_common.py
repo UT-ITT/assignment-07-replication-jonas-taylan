@@ -51,7 +51,6 @@ def homography_and_crop(photo_gray, screen_colored, photo_pts, screen_pts):
     if M is None or not M.any():
         raise ImageProcessingError("Could not find homography between the images.")
 
-    # --- validate: enough matches actually support this homography ---
     if mask is not None:
         inliers = int(mask.sum())
         total = int(mask.shape[0])
@@ -61,12 +60,10 @@ def homography_and_crop(photo_gray, screen_colored, photo_pts, screen_pts):
                 f"(need at least {MIN_INLIERS})."
             )
 
-    # --- project the photo's corners into the screenshot ---
     h, w = photo_gray.shape
     pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
     dst = cv2.perspectiveTransform(pts, M)
 
-    # --- validate: the projected quad is a sane, convex, non-degenerate shape ---
     quad = dst.reshape(-1, 2)
     if not _is_convex(quad):
         raise ImageProcessingError("Homography rejected: projected region is not convex (degenerate match).")
@@ -79,7 +76,6 @@ def homography_and_crop(photo_gray, screen_colored, photo_pts, screen_pts):
             f"({quad_area / screen_area:.1%} of screen, need {MIN_AREA_RATIO:.0%})."
         )
 
-    # --- crop the axis-aligned bounding box, clamped to screen bounds ---
     minX = max(0, int(np.min(dst[:, 0, 0])))
     minY = max(0, int(np.min(dst[:, 0, 1])))
     maxX = min(screen_colored.shape[1], int(np.max(dst[:, 0, 0])))

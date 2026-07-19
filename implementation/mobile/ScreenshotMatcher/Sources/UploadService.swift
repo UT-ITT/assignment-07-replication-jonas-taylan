@@ -24,7 +24,7 @@ enum UploadError: Error, LocalizedError {
     }
 }
 
-/// Sends a captured photo to the Python test script via a multipart/form-data
+/// Sends a captured photo to the Python server via a multipart/form-data
 /// HTTP POST to http://<host>:<port>/upload, and returns the result image the
 /// host sends back in the response body.
 enum UploadService {
