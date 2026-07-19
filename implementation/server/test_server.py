@@ -1,8 +1,8 @@
 """
-ScreenshotMatcher test server.
+ScreenshotMatcher server.
 
-Minimal stand-in for the "PC daemon" described in the ScreenshotMatcher
-paper. It does two things:
+Stand-in for the "PC daemon" described in the ScreenshotMatcher paper. It
+does three things:
 
 1. Bonjour/mDNS advertisement: registers itself as a "_shotmatcher._tcp"
    service on the local network (via the `zeroconf` package) so the iOS app
@@ -10,41 +10,63 @@ paper. It does two things:
    addresses in advance.
 2. HTTP upload: runs an HTTP server on port 8000 and accepts a
    multipart/form-data POST to /upload containing a "photo" field. Received
-   photos are saved to ./received/, and the same image is echoed back in the
-   HTTP response as a stand-in "result" image.
+   photos are saved to ./received/.
+3. Matching: takes a screenshot of the Mac's primary display, then matches
+   the phone photo against it using either ORB (feature detection + a
+   brute-force Hamming matcher) or SIFT (+ a FLANN-based matcher), both
+   followed by Lowe's ratio test + RANSAC homography (see orb.py/sift.py,
+   adapted from Taylan's scripts/server_ready/). The algorithm is selected
+   per-request via the `algorithm` query parameter on /upload (`orb`, the
+   default, or `sift`). The matched region is cropped from the screenshot
+   and returned to the phone. If matching fails (not enough good keypoint
+   matches, no valid homography, ...), a 422 response is returned instead so
+   the app can show a "no match" error.
 
-This script does not yet perform any feature matching / homography — the
-response is just the uploaded photo echoed back, so the app's receive path
-can be built and tested end-to-end. The matching pipeline (ORB, homography,
-crop) is a separate, later step that will replace the echo with a real
-cropped screenshot.
+An earlier version just echoed the uploaded photo back as a stand-in result,
+to get the app's receive/gallery path built and tested before the matching
+pipeline existed. That echo path is gone now that real matching is wired up.
 
-An earlier version used a hand-rolled UDP broadcast protocol for discovery,
-which turned out to be unreliable on a WiFi extender network (broadcast
-packets computed for the wrong subnet mask never arrived). Bonjour/mDNS is
-the platform-native mechanism for local service discovery on Apple devices
-and is handled by the OS network stack, so it isn't subject to that class of
-bug.
+An even earlier version used a hand-rolled UDP broadcast protocol for
+discovery, which turned out to be unreliable on a WiFi extender network
+(broadcast packets computed for the wrong subnet mask never arrived).
+Bonjour/mDNS is the platform-native mechanism for local service discovery on
+Apple devices and is handled by the OS network stack, so it isn't subject to
+that class of bug.
 
 Usage:
+    python3 -m venv .venv && source .venv/bin/activate
+    pip install -r requirements.txt
     python3 test_server.py
 
-Dependencies:
-    pip install zeroconf
+On macOS, granting Terminal (or your IDE) Screen Recording permission
+(System Settings > Privacy & Security > Screen Recording) is required for
+screenshots to work — otherwise mss captures black frames.
 """
 
 import os
 import socket
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse, parse_qs
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import cv2
 from zeroconf import Zeroconf, ServiceInfo
+
+from orb import process_orb, ImageProcessingError
+from sift import process_sift
+from screen_capture import capture_primary_screen_jpeg
 
 SERVICE_TYPE = "_shotmatcher._tcp.local."
 HTTP_PORT = 8000
 
 RECEIVED_DIR = Path(__file__).parent / "received"
+
+MATCHERS = {
+    "orb": process_orb,
+    "sift": process_sift,
+}
+DEFAULT_ALGORITHM = "orb"
 
 # Set MATCHING_ALWAYS_FAILS=1 in the environment to make every upload return
 # a matching-failure response, for testing the app's error handling.
@@ -82,9 +104,20 @@ def register_service(zeroconf: Zeroconf) -> ServiceInfo:
 
 class UploadHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
-        if self.path != "/upload":
+        parsed = urlparse(self.path)
+        if parsed.path != "/upload":
             self.send_response(404)
             self.end_headers()
+            return
+
+        query = parse_qs(parsed.query)
+        algorithm = query.get("algorithm", [DEFAULT_ALGORITHM])[0].lower()
+        matcher = MATCHERS.get(algorithm)
+        if matcher is None:
+            self.send_response(400)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(f"Unknown algorithm '{algorithm}'. Use one of: {', '.join(MATCHERS)}".encode("utf-8"))
             return
 
         content_type = self.headers.get("Content-Type", "")
@@ -111,22 +144,48 @@ class UploadHandler(BaseHTTPRequestHandler):
         out_path.write_bytes(jpeg_bytes)
         print(f"[upload] saved {out_path} ({len(jpeg_bytes)} bytes) from {self.client_address[0]}")
 
-        # No real matching pipeline yet: echo the photo back as the "result"
-        # so the app's receive/gallery path has something to display. This
-        # is also where a matching failure would be reported (see below).
         if MATCHING_ALWAYS_FAILS:
-            self.send_response(422)
+            self._send_matching_failure("Simulated matching failure (MATCHING_ALWAYS_FAILS=1)")
+            return
+
+        try:
+            screen_jpeg = capture_primary_screen_jpeg()
+        except Exception as e:
+            self.send_response(500)
             self.send_header("Content-Type", "text/plain")
             self.end_headers()
-            self.wfile.write(b"No matching screen region found")
-            print("[upload] simulated matching failure (MATCHING_ALWAYS_FAILS=1)")
+            self.wfile.write(f"Failed to capture screen: {e}".encode("utf-8"))
+            print(f"[match] screen capture failed: {e}")
             return
+
+        try:
+            result_img = matcher(jpeg_bytes, screen_jpeg)
+        except ImageProcessingError as e:
+            self._send_matching_failure(str(e))
+            return
+
+        success, encoded = cv2.imencode(".jpg", result_img)
+        if not success:
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(b"Failed to encode result image")
+            return
+
+        result_bytes = encoded.tobytes()
+        print(f"[match] ({algorithm}) matched and cropped to {result_img.shape[1]}x{result_img.shape[0]}")
 
         self.send_response(200)
         self.send_header("Content-Type", "image/jpeg")
-        self.send_header("Content-Length", str(len(jpeg_bytes)))
+        self.send_header("Content-Length", str(len(result_bytes)))
         self.end_headers()
-        self.wfile.write(jpeg_bytes)
+        self.wfile.write(result_bytes)
+
+    def _send_matching_failure(self, message: str) -> None:
+        self.send_response(422)
+        self.send_header("Content-Type", "text/plain")
+        self.end_headers()
+        self.wfile.write(message.encode("utf-8"))
+        print(f"[match] failed: {message}")
 
     @staticmethod
     def _extract_photo(body: bytes, boundary: bytes) -> bytes | None:

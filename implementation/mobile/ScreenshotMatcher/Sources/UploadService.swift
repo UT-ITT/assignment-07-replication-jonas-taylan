@@ -28,12 +28,23 @@ enum UploadError: Error, LocalizedError {
 /// HTTP POST to http://<host>:<port>/upload, and returns the result image the
 /// host sends back in the response body.
 enum UploadService {
-    static func upload(image: UIImage, host: String, port: UInt16) async throws -> UIImage {
-        guard let jpegData = image.jpegData(compressionQuality: 0.85) else {
+    /// The paper has the phone "scale it down in resolution" before sending.
+    /// Skipping this made ORB matching unreliable in practice: full-resolution
+    /// iPhone photos (several MB) have keypoint scales that don't line up
+    /// well with a much smaller Mac screenshot, so too few good matches were
+    /// found. 1280px on the long edge keeps enough detail for feature
+    /// matching while shrinking uploads considerably.
+    private static let maxDimension: CGFloat = 1280
+
+    static func upload(image: UIImage, host: String, port: UInt16, algorithm: MatchingAlgorithm) async throws -> UIImage {
+        let scaledImage = downscaled(image, maxDimension: maxDimension)
+        guard let jpegData = scaledImage.jpegData(compressionQuality: 0.85) else {
             throw UploadError.imageEncodingFailed
         }
 
-        let url = URL(string: "http://\(host):\(port)/upload")!
+        var components = URLComponents(string: "http://\(host):\(port)/upload")!
+        components.queryItems = [URLQueryItem(name: "algorithm", value: algorithm.rawValue)]
+        let url = components.url!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 15
@@ -74,5 +85,21 @@ enum UploadService {
             throw UploadError.badResponse
         }
         return resultImage
+    }
+
+    private static func downscaled(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let size = image.size
+        let longestEdge = max(size.width, size.height)
+        guard longestEdge > maxDimension else { return image }
+
+        let scale = maxDimension / longestEdge
+        let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
     }
 }

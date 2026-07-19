@@ -23,6 +23,7 @@ struct CameraView: View {
 
     @StateObject private var camera = CameraManager()
     @StateObject private var discovery = DiscoveryService()
+    @AppStorage("matchingAlgorithm") private var algorithmRawValue: String = MatchingAlgorithm.orb.rawValue
 
     @State private var stage: CaptureStage = .idle
     @State private var activeError: AppError?
@@ -88,7 +89,7 @@ struct CameraView: View {
 
     private var topBar: some View {
         HStack {
-            ConnectionBadge(discovery: discovery)
+            ConnectionBadge(discovery: discovery, algorithmRawValue: $algorithmRawValue)
             Spacer()
         }
         .padding()
@@ -148,7 +149,8 @@ struct CameraView: View {
             sentStore.add(photo)
 
             stage = .uploading
-            let result = try await UploadService.upload(image: photo, host: host, port: port)
+            let algorithm = MatchingAlgorithm(rawValue: algorithmRawValue) ?? .orb
+            let result = try await UploadService.upload(image: photo, host: host, port: port, algorithm: algorithm)
             let item = receivedStore.add(result)
 
             stage = .done

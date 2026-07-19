@@ -6,6 +6,7 @@ import SwiftUI
 /// talking to) while diagnostics stay a tap away.
 struct ConnectionBadge: View {
     @ObservedObject var discovery: DiscoveryService
+    @Binding var algorithmRawValue: String
     @State private var showDetails = false
 
     var body: some View {
@@ -31,7 +32,7 @@ struct ConnectionBadge: View {
         .buttonStyle(.plain)
         .foregroundStyle(.white)
         .sheet(isPresented: $showDetails) {
-            ConnectionDetailsView(discovery: discovery)
+            ConnectionDetailsView(discovery: discovery, algorithmRawValue: $algorithmRawValue)
                 .presentationDetents([.medium, .large])
         }
     }
@@ -57,6 +58,7 @@ struct ConnectionBadge: View {
 
 private struct ConnectionDetailsView: View {
     @ObservedObject var discovery: DiscoveryService
+    @Binding var algorithmRawValue: String
     @Environment(\.dismiss) private var dismiss
     @State private var showManualConnect = false
 
@@ -71,6 +73,15 @@ private struct ConnectionDetailsView: View {
                     if let address = discovery.hostAddress, let port = discovery.hostPort {
                         LabeledContent("Address", value: "\(address):\(port)")
                     }
+                }
+
+                Section("Matching") {
+                    Picker("Algorithm", selection: $algorithmRawValue) {
+                        ForEach(MatchingAlgorithm.allCases) { algorithm in
+                            Text(algorithm.displayName).tag(algorithm.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 Section("Log") {

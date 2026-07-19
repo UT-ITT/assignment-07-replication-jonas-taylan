@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		02426E18862F0EDC771A2B77 /* GalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C9B0EC6AC9561788E2716EC /* GalleryView.swift */; };
 		0A013C7DB23A073D7E8CBAB5 /* ScreenshotMatcherApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B49261D34184A6A188B49E4 /* ScreenshotMatcherApp.swift */; };
+		4B23FAB4F05E80E49092237B /* MatchingAlgorithm.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6B5CDD56D50B7C6FB280434 /* MatchingAlgorithm.swift */; };
 		516093E261114CCBA0882C64 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E188663257E56CF3925EE6 /* CameraManager.swift */; };
 		7A949661694D4273B4583DD2 /* DiscoveryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B7CB75C3EE6C262C42CD9E5 /* DiscoveryService.swift */; };
 		7C76B26A56180B0F82CAD448 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D578208E7807117BC49007E /* CameraPreviewView.swift */; };
@@ -28,6 +29,7 @@
 		8843362420146129FA5F4C41 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		8D578208E7807117BC49007E /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
 		A5D473CB471D9B278DDB066F /* ConnectionBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionBadge.swift; sourceTree = "<group>"; };
+		B6B5CDD56D50B7C6FB280434 /* MatchingAlgorithm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchingAlgorithm.swift; sourceTree = "<group>"; };
 		D8E188663257E56CF3925EE6 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
 		DA1E880E142DDFD097484BF2 /* ScreenshotMatcher.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScreenshotMatcher.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F188EA77CB850F78E85963D6 /* UploadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadService.swift; sourceTree = "<group>"; };
@@ -60,6 +62,7 @@
 				0B7CB75C3EE6C262C42CD9E5 /* DiscoveryService.swift */,
 				596D2B97F7306570B582121D /* GalleryStore.swift */,
 				6C9B0EC6AC9561788E2716EC /* GalleryView.swift */,
+				B6B5CDD56D50B7C6FB280434 /* MatchingAlgorithm.swift */,
 				8843362420146129FA5F4C41 /* RootView.swift */,
 				0B49261D34184A6A188B49E4 /* ScreenshotMatcherApp.swift */,
 				F188EA77CB850F78E85963D6 /* UploadService.swift */,
@@ -133,6 +136,7 @@
 				7A949661694D4273B4583DD2 /* DiscoveryService.swift in Sources */,
 				7FC42A65B7D41EA16716B72A /* GalleryStore.swift in Sources */,
 				02426E18862F0EDC771A2B77 /* GalleryView.swift in Sources */,
+				4B23FAB4F05E80E49092237B /* MatchingAlgorithm.swift in Sources */,
 				AFA24F12AB08FC7CC32749CC /* RootView.swift in Sources */,
 				0A013C7DB23A073D7E8CBAB5 /* ScreenshotMatcherApp.swift in Sources */,
 				8973B290A86E630D974A9F6D /* UploadService.swift in Sources */,

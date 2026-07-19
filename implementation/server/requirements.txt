@@ -1,1 +1,4 @@
 zeroconf
+opencv-python
+numpy
+mss
