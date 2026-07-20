@@ -65,6 +65,12 @@ the host that performs the matching.
 - `matching_common.py` — shared homography computation, validation, and
   cropping logic used by both matchers.
 
+The component diagram below shows how the iOS app's parts relate: `RootView`
+hosts the three tabs, `CameraView` drives capture/discovery/upload, and the
+galleries are backed by `GalleryStore`.
+
+![Component diagram of the iOS app: RootView hosting CameraView and GalleryView, which use CameraManager, DiscoveryService, UploadService, MatchingAlgorithm, and GalleryStore.](figures/frontend-components.png)
+
 ### User interface
 
 The app is organised as three tabs — Camera, Sent, and Received — mirroring
@@ -97,6 +103,12 @@ Both matchers follow the pipeline described in the paper:
    during development, it is not part of the original scripts).
 6. Project the photo's corners through the homography, take the
    axis-aligned bounding box, and crop it from the screenshot.
+
+The flowchart below shows the full server-side control flow, including the
+two failure paths (too few matches, or an invalid homography) that both
+return a 422 "no match" response.
+
+![Flowchart of the matching pipeline: receive photo, capture screenshot, detect and match features, check match count, compute and validate homography, crop and return the result, or return a 422 error on either failure path.](figures/matching-pipeline.png)
 
 ### Deviations from the original
 
