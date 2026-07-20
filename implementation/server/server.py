@@ -13,6 +13,7 @@ See README.md for the wire protocol and required macOS permissions.
 """
 
 import socket
+import time
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
@@ -108,6 +109,8 @@ class UploadHandler(BaseHTTPRequestHandler):
         out_path.write_bytes(jpeg_bytes)
         print(f"[upload] saved {out_path} ({len(jpeg_bytes)} bytes) from {self.client_address[0]}")
 
+        t_start = time.perf_counter()
+
         try:
             screen_jpeg = capture_primary_screen_jpeg()
         except Exception as e:
@@ -117,12 +120,14 @@ class UploadHandler(BaseHTTPRequestHandler):
             self.wfile.write(f"Failed to capture screen: {e}".encode("utf-8"))
             print(f"[match] screen capture failed: {e}")
             return
+        t_screenshot = time.perf_counter()
 
         try:
             result_img = matcher(jpeg_bytes, screen_jpeg)
         except ImageProcessingError as e:
             self._send_matching_failure(str(e))
             return
+        t_matched = time.perf_counter()
 
         success, encoded = cv2.imencode(".jpg", result_img)
         if not success:
@@ -130,9 +135,19 @@ class UploadHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"Failed to encode result image")
             return
+        t_encoded = time.perf_counter()
 
         result_bytes = encoded.tobytes()
-        print(f"[match] ({algorithm}) matched and cropped to {result_img.shape[1]}x{result_img.shape[0]}")
+        print(
+            f"[match] ({algorithm}) matched and cropped to "
+            f"{result_img.shape[1]}x{result_img.shape[0]}"
+        )
+        print(
+            f"[timing] screenshot={1000 * (t_screenshot - t_start):.0f}ms "
+            f"match={1000 * (t_matched - t_screenshot):.0f}ms "
+            f"encode={1000 * (t_encoded - t_matched):.0f}ms "
+            f"total={1000 * (t_encoded - t_start):.0f}ms"
+        )
 
         self.send_response(200)
         self.send_header("Content-Type", "image/jpeg")

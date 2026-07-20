@@ -29,6 +29,7 @@ struct CameraView: View {
     @State private var activeError: AppError?
     @State private var lastResultItem: GalleryItem?
     @State private var showResultToast = false
+    @State private var lastLatencyMs: Int?
 
     var body: some View {
         ZStack {
@@ -98,14 +99,25 @@ struct CameraView: View {
     @ViewBuilder
     private func resultThumbnail(_ item: GalleryItem) -> some View {
         if let image = receivedStore.image(for: item) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .frame(height: 90)
-                .cornerRadius(8)
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white, lineWidth: 1))
-                .padding(.bottom, 8)
-                .transition(.opacity.combined(with: .scale))
+            VStack(spacing: 4) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 90)
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white, lineWidth: 1))
+                if let lastLatencyMs {
+                    Text("\(lastLatencyMs) ms")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.black.opacity(0.6))
+                        .clipShape(Capsule())
+                }
+            }
+            .padding(.bottom, 8)
+            .transition(.opacity.combined(with: .scale))
         }
     }
 
@@ -144,14 +156,21 @@ struct CameraView: View {
 
         showResultToast = false
         stage = .capturing
+        let tStart = Date()
         do {
             let photo = try await camera.capturePhoto()
             sentStore.add(photo)
 
             stage = .uploading
             let algorithm = MatchingAlgorithm(rawValue: algorithmRawValue) ?? .orb
+            let tUpload = Date()
             let result = try await UploadService.upload(image: photo, host: host, port: port, algorithm: algorithm)
+            let roundtripMs = Int(Date().timeIntervalSince(tUpload) * 1000)
             let item = receivedStore.add(result)
+
+            let totalMs = Int(Date().timeIntervalSince(tStart) * 1000)
+            print("[timing] end-to-end: capture+upload roundtrip=\(roundtripMs)ms total=\(totalMs)ms")
+            lastLatencyMs = totalMs
 
             stage = .done
             lastResultItem = item

@@ -127,6 +127,32 @@ return a 422 "no match" response.
   without detailing the check. We implemented a concrete version of this
   (inlier count, convexity, minimum area, aspect ratio — see Section 3).
 
+### Performance compared to the paper
+
+The paper reports 90 ms processing time in the lab and a 878 ms mean
+response time in its real-world field study. We instrumented both the app
+(end-to-end, shutter → result shown) and the server (per-step) and measured
+averages over several successful ORB matches on the same WiFi network:
+
+| Stage | Time |
+|---|---|
+| Screenshot capture (`mss`) | ~103 ms |
+| Feature matching (ORB) | ~104 ms |
+| JPEG encoding | ~3 ms |
+| **Server total** | **~210 ms** |
+| Network transfer (round-trip minus server) | ~333 ms |
+| On-device photo capture + processing | ~570 ms |
+| **End-to-end (shutter → result)** | **~1113 ms** |
+
+![Stacked bar chart comparing our end-to-end latency (~1113 ms, broken down into phone capture, network, screenshot, and matching) against the paper's field study (878 ms) and lab processing time (90 ms).](figures/latency-comparison.png)
+
+The most direct comparison is the matching step itself: our ~104 ms is on
+par with the paper's 90 ms lab figure, which is expected since both use the
+same OpenCV ORB pipeline. Our end-to-end time (~1.1 s) sits close to the
+paper's 878 ms field result. The breakdown shows the extra time is not in
+the matching but in on-device photo capture (AVFoundation) and network
+transfer — neither of which the paper's 90 ms lab number includes.
+
 ## 3. Development Process, Challenges, and Limitations
 
 We built the app and server in the order a working prototype needs them:
