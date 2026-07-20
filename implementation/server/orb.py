@@ -29,8 +29,13 @@ def process_orb(photo_bytes, screen_bytes):
     descriptor_matcher = cv2.DescriptorMatcher_create('BruteForce-Hamming')
     matches = descriptor_matcher.knnMatch(des_photo, des_screen, k=2)
 
+    # knnMatch can return pairs with fewer than 2 neighbours; skip those
+    # instead of unpacking blindly.
     good_matches = []
-    for m, n in matches:
+    for pair in matches:
+        if len(pair) < 2:
+            continue
+        m, n = pair
         if m.distance < 0.75 * n.distance:
             good_matches.append(m)
 

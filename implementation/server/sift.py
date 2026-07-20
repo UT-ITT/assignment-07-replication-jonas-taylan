@@ -23,8 +23,8 @@ def process_sift(photo_bytes, screen_bytes):
     kp_photo, des_photo = sift.detectAndCompute(photo, None)
     kp_screen, des_screen = sift.detectAndCompute(screen, None)
 
-    if des_photo is None or des_screen is None:
-        raise ImageProcessingError("Could not extract SIFT features from the images.")
+    if des_photo is None or des_screen is None or len(des_photo) < 2 or len(des_screen) < 2:
+        raise ImageProcessingError("Could not extract enough SIFT features from the images.")
 
     descriptor_matcher = cv2.DescriptorMatcher_create('FlannBased')
 
@@ -36,8 +36,13 @@ def process_sift(photo_bytes, screen_bytes):
 
     matches = descriptor_matcher.knnMatch(des_photo, des_screen, k=2)
 
+    # knnMatch can return pairs with fewer than 2 neighbours (especially with
+    # FLANN's approximate search); skip those instead of unpacking blindly.
     good_matches = []
-    for m, n in matches:
+    for pair in matches:
+        if len(pair) < 2:
+            continue
+        m, n = pair
         if m.distance < 0.75 * n.distance:
             good_matches.append(m)
 
