@@ -42,18 +42,7 @@ iOS app (instead of Android, since we only had access to an iPhone) acts as
 the camera/viewfinder client, and a Python daemon running on a Mac acts as
 the host that performs the matching.
 
-```
- iPhone (SwiftUI app)                      Mac (Python daemon)
- ┌─────────────────────┐   Bonjour/mDNS    ┌──────────────────────┐
- │ Camera viewfinder    │ ───────────────▶ │ Service advertisement │
- │ Bonjour discovery    │ ◀─────────────── │ (_shotmatcher._tcp)   │
- │                      │                   │                      │
- │ Capture + downscale  │   HTTP POST       │ Screen capture (mss) │
- │ photo, upload        │ ───────────────▶ │ ORB / SIFT matching  │
- │                      │                   │ Homography + crop   │
- │ Show result / error  │ ◀─────────────── │ (OpenCV)             │
- └─────────────────────┘   JPEG or 422      └──────────────────────┘
-```
+![High-level architecture: iPhone SwiftUI app and Mac Python server, connected by Bonjour discovery and HTTP upload, with the matching pipeline on the server.](figures/architecture.png)
 
 **iOS app** (`implementation/mobile/`, SwiftUI):
 - `CameraManager` — AVFoundation capture session, live viewfinder and
