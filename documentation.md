@@ -65,6 +65,23 @@ the host that performs the matching.
 - `matching_common.py` — shared homography computation, validation, and
   cropping logic used by both matchers.
 
+### User interface
+
+The app is organised as three tabs — Camera, Sent, and Received — mirroring
+the core interaction: photograph a screen region, and receive a clean
+cropped screenshot back.
+
+| Camera | Sent gallery | Received gallery | Detail & share |
+|---|---|---|---|
+| ![Camera screen with live viewfinder, connection badge, and shutter button](figures/ui-camera.png) | ![Sent gallery showing an uploaded photo as a thumbnail](figures/ui-sent-gallery.png) | ![Received gallery showing a cropped screenshot returned by the server](figures/ui-received-gallery.png) | ![Full-image detail view with the native iOS share sheet open](figures/ui-detail-share.jpg) |
+
+The Camera tab shows the live viewfinder with the connection status at the
+top (host name + a colored dot) and the shutter button. Captured photos and
+the screenshots returned by the server are stored in the Sent and Received
+galleries respectively; each supports multi-select, sharing via the native
+iOS share sheet, and deletion. The detail view shows the full image and its
+share/delete actions.
+
 ### Matching pipeline
 
 Both matchers follow the pipeline described in the paper:
