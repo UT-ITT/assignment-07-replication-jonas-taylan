@@ -1,4 +1,5 @@
 received/
+demo/
 __pycache__/
 *.pyc
 .venv/

@@ -31,6 +31,9 @@ screenshots come back black.
 - `matching_common.py` – shared RANSAC homography + crop logic used by both
   matchers, including validation that rejects degenerate matches (see
   below).
+- `demo_capture.py` – on each successful match, saves a side-by-side
+  `demo/<timestamp>_comparison.jpg` showing the uploaded photo next to the
+  cropped result. Useful for live demos; `demo/` is git-ignored.
 
 ## Protocol
 

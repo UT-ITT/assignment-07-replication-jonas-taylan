@@ -25,6 +25,7 @@ from zeroconf import Zeroconf, ServiceInfo
 from orb import process_orb, ImageProcessingError
 from sift import process_sift
 from screen_capture import capture_primary_screen_jpeg
+from demo_capture import save_comparison
 
 SERVICE_TYPE = "_shotmatcher._tcp.local."
 HTTP_PORT = 8000
@@ -148,6 +149,10 @@ class UploadHandler(BaseHTTPRequestHandler):
             f"encode={1000 * (t_encoded - t_matched):.0f}ms "
             f"total={1000 * (t_encoded - t_start):.0f}ms"
         )
+
+        demo_path = save_comparison(jpeg_bytes, result_img)
+        if demo_path is not None:
+            print(f"[demo] saved comparison {demo_path}")
 
         self.send_response(200)
         self.send_header("Content-Type", "image/jpeg")
