@@ -139,19 +139,28 @@ averages over several successful ORB matches on the same WiFi network:
 | Screenshot capture (`mss`) | ~103 ms |
 | Feature matching (ORB) | ~104 ms |
 | JPEG encoding | ~3 ms |
-| **Server total** | **~210 ms** |
+| **Server total (ORB)** | **~210 ms** |
 | Network transfer (round-trip minus server) | ~333 ms |
 | On-device photo capture + processing | ~570 ms |
-| **End-to-end (shutter → result)** | **~1113 ms** |
+| **End-to-end (shutter → result, ORB)** | **~1113 ms** |
 
-![Stacked bar chart comparing our end-to-end latency (~1113 ms, broken down into phone capture, network, screenshot, and matching) against the paper's field study (878 ms) and lab processing time (90 ms).](figures/latency-comparison.png)
+![Two bar charts. Left: our end-to-end latency (~1113 ms, broken into phone capture, network, screenshot, and ORB matching) next to the paper's field study (878 ms) and lab processing time (90 ms). Right: matching time ORB (107 ms) vs. SIFT (337 ms).](figures/latency-comparison.png)
 
-The most direct comparison is the matching step itself: our ~104 ms is on
-par with the paper's 90 ms lab figure, which is expected since both use the
-same OpenCV ORB pipeline. Our end-to-end time (~1.1 s) sits close to the
+The most direct comparison is the matching step itself: our ~104 ms (ORB) is
+on par with the paper's 90 ms lab figure, which is expected since both use
+the same OpenCV ORB pipeline. Our end-to-end time (~1.1 s) sits close to the
 paper's 878 ms field result. The breakdown shows the extra time is not in
 the matching but in on-device photo capture (AVFoundation) and network
 transfer — neither of which the paper's 90 ms lab number includes.
+
+**ORB vs. SIFT.** We also measured our optional SIFT matcher: at ~337 ms per
+match it is roughly 3× slower than ORB (~104 ms), while the surrounding
+stages (screenshot, network, capture) are unchanged. This matches the
+general trade-off between the two — SIFT is more robust to scale and
+rotation but computationally heavier — and is exactly why the paper chose
+ORB, which it found "performed faster and more accurately than comparable
+ones" for this use case. Offering both let us confirm that trade-off on our
+own inputs rather than take it on faith.
 
 ## 3. Development Process, Challenges, and Limitations
 
